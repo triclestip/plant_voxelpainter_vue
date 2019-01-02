@@ -98,8 +98,10 @@ export default {
       loader_big: 0,
 
       objects: [],
-      existingPlants: [{name: 'plant', type:'small', scale: 10, x:10, y:0, z:0},
-                          {name: 'plant2', type:'small', scale: 10, x:0, y:0, z:0}],
+      existingPlants: [
+        {name: 'plant', type:'small', scale: 1.6, x:50, y:0, z:50},
+        {name: 'plant2', type:'small', scale: 1.6, x:10, y:0, z:10}
+      ],
       loadedObjects: [],
 
       raycaster: 0,
@@ -285,33 +287,32 @@ export default {
   		this.scene.add(this.rightText)
     },
     loadPlants: function() {
-      // for (var i=0; i<this.existingPlants.length; i++) {
-      //   // console.log(this.existingPlants[i])
-      //   if (this.existingPlants[i].type == 'small') {
-      //     console.log(this.existingPlants[i])
-      //     this.loader.load( 'scene.gltf', ( gltf ) => {
-			// 			this.plant = gltf.scene;
-      //       // this.plant.position.x = this.existingPlants[i].x
-			// 			this.plant.position.copy(this.existingPlants[i].x,this.existingPlants[i].y, this.existingPlants[i].z);
-			// 			// this.plant.scale.set(this.existingPlants[i].scale,this.existingPlants[i].scale,this.existingPlant[i].scale);
-      //
-	    //     	this.scene.add( this.plant );
-			// 			this.objects.push( this.plant );
-			// 			this.domEvent.addEventListener(this.plant, 'click', (event)  => {
-      //         if (this.plant_edit == true) {
-      //           this.openModal();
-      //         }
-      //       }, false);
-      //
-	    //     });
-      //
-      //   } else {
-      //
-      //   }
-      // }
-      // this.existingPlants.forEach(function(existingPlant) {
-      //
-      // })
+      for (var i=0; i<this.existingPlants.length; i++) {
+
+        if (this.existingPlants[i].type == 'small') {
+          let actual = this.existingPlants[i]
+          //console.log(actual)
+          this.loader.load( 'scene.gltf', ( gltf ) => {
+            console.log(actual)
+						this.plant = gltf.scene;
+            // this.plant.position.x = this.existingPlants[i].x
+						this.plant.position.set(actual.x,actual.y, actual.z);
+						this.plant.scale.set(actual.scale, actual.scale, actual.scale);
+	        	this.scene.add( this.plant );
+						this.objects.push( this.plant );
+						this.domEvent.addEventListener(this.plant, 'click', (event)  => {
+              if (this.plant_edit == true) {
+                this.openModal();
+              }
+            }, false);
+	        });
+        } else {
+
+        }
+      }
+      this.existingPlants.forEach(function(existingPlant) {
+
+      })
     },
     onWindowResize: function() {
 			this.camera.aspect = window.innerWidth / window.innerHeight;
