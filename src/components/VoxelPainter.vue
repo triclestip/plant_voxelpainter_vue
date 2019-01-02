@@ -1,0 +1,520 @@
+<template>
+  <div id="painter">
+    {{ title }}
+    <div id="buttons">
+      <el-button type="success" @click="togglePlant" >New small Plant</el-button>
+      <el-button type="success" @click="toggleBigPlant">New Big Plant</el-button>
+      <el-button type="warning" @click="toggleEdit" plain>Edit Plants</el-button>
+		</div>
+    <div id="dimensions">
+      <el-row :gutter="20">
+        <el-col :span="10" >
+          <div class="grid-content">
+            <h3>Room X</h3>
+          </div>
+        </el-col>
+        <el-col :span="10">
+          <div class="grid-content">
+            <el-input-number v-model="roomX" :min="20" :max="1000" :step="10" @change="refreshRoom"></el-input-number>
+          </div>
+        </el-col>
+      </el-row>
+      <el-row :gutter="20">
+        <el-col :span="10">
+          <div class="grid-content">
+            <h3>Room Y</h3>
+          </div>
+        </el-col>
+        <el-col :span="10">
+          <div class="grid-content">
+            <el-input-number v-model="roomY" :min="20" :max="1000" :step="10" @change="refreshRoom"></el-input-number>
+          </div>
+        </el-col>
+      </el-row>
+      <el-row :gutter="20">
+        <el-col :span="10">
+          <div class="grid-content">
+            <h3>Grid Size</h3>
+          </div>
+        </el-col>
+        <el-col :span="10">
+          <div class="grid-content">
+            <el-input-number v-model="gridSize" :min="5" :max="200" :step="5" @change="refreshRoom"></el-input-number>
+          </div>
+        </el-col>
+      </el-row>
+    </div>
+  </div>
+</template>
+
+<script src="../assets/threex.domevents.js"></script>
+<script>
+import * as THREE from 'three'
+// import * as DE from 'threex.domevents'
+import GLTFLoader from 'three-gltf-loader'
+import OrbitControls from 'three-orbitcontrols'
+import TextSprite from 'three.textsprite'
+
+import THREEx from '../assets/threex.domevents.js'
+
+// var THREE = require('three')
+// var initializeDomEvents = require('threex.domevents')
+// var THREEx = {}
+// initializeDomEvents(THREE, THREEx);
+
+export default {
+  name: 'VoxelPainter',
+  props: {
+    title: String
+  },
+  data: function() {
+    return {
+      roomX: 240,
+      roomY: 240,
+      gridSize: 20,
+
+      small_plant_active: false,
+      big_plant_active: false,
+      plant_edit: false,
+      camera: 0,
+      scene: 0,
+      gridHelper: 0,
+
+      rollOverGeo: 0,
+      rollOverMesh: 0,
+      rollOverMaterial: 0,
+
+      rollOverGeoBig: 0,
+      rollOverMeshBig: 0,
+      rollOverMaterialBig: 0,
+
+      renderer: 0,
+      controls: 0,
+      domEvent: 0,
+      ambientLight: 0,
+      directionalLight: 0,
+
+      loader: 0,
+      loader_big: 0,
+
+      objects: [],
+      existingPlants: [{name: 'plant', type:'small', scale: 10, x:10, y:0, z:0},
+                          {name: 'plant2', type:'small', scale: 10, x:0, y:0, z:0}],
+      loadedObjects: [],
+
+      raycaster: 0,
+      mouse: false,
+
+      geometry: 0,
+      plane: 0,
+
+      isShiftDown: false,
+
+      plant: 0,
+      activePlant: 0,
+
+      topText: 0,
+      bottomText: 0,
+      leftText: 0,
+      rightText: 0,
+    }
+
+  },
+  methods: {
+    togglePlant: function() {
+      if (this.small_plant_active == true) {
+        this.small_plant_active = false;
+        this.rollOverMaterial.visible = false;
+      } else {
+        this.small_plant_active = true;
+        this.big_plant_active = false;
+      }
+    },
+    toggleBigPlant: function() {
+      if (this.big_plant_active == true) {
+        this.big_plant_active = false;
+        this.rollOverMaterialBig.visible = false;
+      } else {
+        this.big_plant_active = true;
+        this.small_plant_active = false;
+      }
+    },
+    toggleEdit: function() {
+      if (this.plant_edit == true) {
+        this.plant_edit = false;
+      } else {
+        this.plant_edit = true;
+      }
+    },
+    openModal: function () {
+      console.log(event)
+      console.log(this.objects)
+      this.$alert(this.activePlant.strain, this.activePlant.name, {
+        confirmButtonText: 'OK',
+        callback: action => {
+          this.$message({
+            type: 'info',
+            message: `action: ${ action }`
+          });
+        }
+      });
+    },
+    refreshRoom: function() {
+      this.scene.remove(this.plane);
+      this.scene.remove(this.gridHelper);
+      this.addPlane();
+      this.createGridHelper();
+
+      // we also need to refresh the size of the rollOverMesh
+      this.scene.remove(this.rollOverMesh);
+      this.scene.remove(this.rollOverMeshBig);
+      this.createRollOverGeo();
+
+      // remove and refresh the textTop etc.
+      this.scene.remove(this.topText);
+      this.scene.remove(this.bottomText);
+      this.scene.remove(this.leftText);
+      this.scene.remove(this.rightText);
+      this.addText();
+
+      this.controls.target.set(this.roomX/2,0,this.roomY/2);
+      this.controls.update();
+    },
+    addCamera: function() {
+      console.log(this.camera)
+      this.camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 10000 );
+  		this.camera.position.set( 500, 800, 2300 );
+  		console.log(this.camera);
+    },
+    addScene: function() {
+      this.scene = new THREE.Scene();
+  		this.scene.background = new THREE.Color( 0x3e4653 );
+    },
+    createRollOverGeo: function() {
+      this.rollOverGeo = new THREE.BoxBufferGeometry( this.gridSize, this.gridSize, this.gridSize );
+  		this.rollOverMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
+  		this.rollOverMesh = new THREE.Mesh( this.rollOverGeo, this.rollOverMaterial )
+  		this.scene.add(this.rollOverMesh)
+
+      this.rollOverGeoBig = new THREE.BoxBufferGeometry( this.gridSize*2, this.gridSize*2, this.gridSize*2 );
+  		this.rollOverMaterialBig = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
+  		this.rollOverMeshBig = new THREE.Mesh( this.rollOverGeoBig, this.rollOverMaterialBig );
+  		this.scene.add(this.rollOverMeshBig)
+    },
+    createGridHelper: function() {
+      if (this.roomX >= this.roomY) {
+        this.gridHelper = new THREE.GridHelper( this.roomX * 2, this.roomX/this.gridSize * 2,  0x3e4653, 0x3e4653 );
+        this.scene.add( this.gridHelper );
+      } else {
+        this.gridHelper = new THREE.GridHelper( this.roomY * 2, this.roomY/this.gridSize * 2,  0x3e4653, 0x3e4653 );
+        this.scene.add( this.gridHelper );
+      }
+
+    },
+    addLights: function() {
+      // lights
+
+  		this.ambientLight = new THREE.AmbientLight( 0x606060 );
+  		this.scene.add( this.ambientLight );
+
+  		this.directionalLight = new THREE.DirectionalLight( 0xffffff );
+  		this.directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
+  		this.scene.add( this.directionalLight );
+    },
+    addPlane: function() {
+      // raycaster
+  		this.raycaster = new THREE.Raycaster();
+  		this.mouse = new THREE.Vector2();
+
+  		this.geometry = new THREE.PlaneBufferGeometry( this.roomX , this.roomY );
+  		this.geometry.rotateX( - Math.PI / 2 );
+
+  		this.plane = new THREE.Mesh( this.geometry, new THREE.MeshBasicMaterial( { visible: true, color: 0xfeb74c  } ) );
+  		this.plane.position.x = this.roomX/2;
+  		this.plane.position.z = this.roomY/2;
+
+  		//plane.position.set(gridSize,0,gridSize);
+  		this.scene.add( this.plane );
+
+  		this.objects.push( this.plane );
+    },
+    addText: function() {
+      // Load Sprite
+  		this.topText = new TextSprite({
+  			textSize: 10,
+  			texture: {
+      		text: 'Top',
+      		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+  		},
+  			material: {color: 0xfeb74c},
+  		});
+  		this.topText.position.set(this.roomX/2 , 15, -50);
+  		this.scene.add(this.topText)
+
+      this.bottomText = new TextSprite({
+  			textSize: 10,
+  			texture: {
+      		text: 'Bottom',
+      		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+  		},
+  			material: {color: 0xfeb74c},
+  		});
+  		this.bottomText.position.set(this.roomX/2 , 15, this.roomY+50);
+  		this.scene.add(this.bottomText)
+
+  		this.leftText = new TextSprite({
+  			textSize: 10,
+  			texture: {
+      		text: 'Left',
+      		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+  		},
+  			material: {color: 0xfeb74c},
+  		});
+  		this.leftText.position.set(-50 , 15, this.roomY/2);
+  		this.scene.add(this.leftText)
+
+  		this.rightText = new TextSprite({
+  			textSize: 10,
+  			texture: {
+      		text: 'Right',
+      		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+  		},
+  			material: {color: 0xfeb74c},
+  		});
+  		this.rightText.position.set(this.roomX + 50 , 15, this.roomY/2);
+  		this.scene.add(this.rightText)
+    },
+    loadPlants: function() {
+      // for (var i=0; i<this.existingPlants.length; i++) {
+      //   // console.log(this.existingPlants[i])
+      //   if (this.existingPlants[i].type == 'small') {
+      //     console.log(this.existingPlants[i])
+      //     this.loader.load( 'scene.gltf', ( gltf ) => {
+			// 			this.plant = gltf.scene;
+      //       // this.plant.position.x = this.existingPlants[i].x
+			// 			this.plant.position.copy(this.existingPlants[i].x,this.existingPlants[i].y, this.existingPlants[i].z);
+			// 			// this.plant.scale.set(this.existingPlants[i].scale,this.existingPlants[i].scale,this.existingPlant[i].scale);
+      //
+	    //     	this.scene.add( this.plant );
+			// 			this.objects.push( this.plant );
+			// 			this.domEvent.addEventListener(this.plant, 'click', (event)  => {
+      //         if (this.plant_edit == true) {
+      //           this.openModal();
+      //         }
+      //       }, false);
+      //
+	    //     });
+      //
+      //   } else {
+      //
+      //   }
+      // }
+      // this.existingPlants.forEach(function(existingPlant) {
+      //
+      // })
+    },
+    onWindowResize: function() {
+			this.camera.aspect = window.innerWidth / window.innerHeight;
+			this.camera.updateProjectionMatrix();
+
+			this.renderer.setSize( window.innerWidth, window.innerHeight );
+		},
+    onDocumentMouseMove: function( event ) {
+			// event.preventDefault();
+			// let sp = document.getElementById('small_plant').classList.contains('active')
+			// let bp = document.getElementById('big_plant').classList.contains('active')
+			if ( this.small_plant_active == true) {
+
+				this.mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+
+				this.raycaster.setFromCamera( this.mouse, this.camera );
+				var intersects = this.raycaster.intersectObjects( this.objects );
+
+				if ( intersects.length > 0 ) {
+					var intersect = intersects[ 0 ];
+					this.rollOverMaterial.visible = true;
+
+					this.rollOverMesh.position.copy( intersect.point ).add( intersect.face.normal );
+					this.rollOverMesh.position.divideScalar( this.gridSize ).floor().multiplyScalar( this.gridSize ).addScalar( this.gridSize / 2 );
+          // console.log(this.gridSize);
+				}
+				this.loop();
+			}
+			if ( this.big_plant_active == true) {
+        this.rollOverMaterial.visible = false;
+				this.mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+
+				this.raycaster.setFromCamera( this.mouse, this.camera );
+				var intersects = this.raycaster.intersectObjects( this.objects );
+
+				if ( intersects.length > 0 ) {
+					var intersect = intersects[ 0 ];
+					this.rollOverMaterialBig.visible = true;
+					this.rollOverMeshBig.position.copy( intersect.point ).add( intersect.face.normal );
+					this.rollOverMeshBig.position.divideScalar( this.gridSize*2 ).floor().multiplyScalar( this.gridSize *2 ).addScalar( this.gridSize );
+				}
+				this.loop();
+			}
+		},
+    onDocumentMouseDown: function( event ) {
+			// event.preventDefault();
+			this.mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+			this.raycaster.setFromCamera( this.mouse, this.camera );
+
+			var intersects = this.raycaster.intersectObjects( this.objects, true );
+
+			if ( intersects.length > 0 ) {
+				var intersect = intersects[ 0 ];
+				// delete cube, not working right now, as we add a scene and not a mesh to the main scene
+				if ( this.isShiftDown ) {
+					if ( intersect.object.parent !== this.scene ) {
+						this.objects.splice( this.objects.indexOf( intersect.object ), 1 );
+						intersect.object.parent.remove(intersect.object);
+					}
+					// create plant, test if small_plant button is active
+				} if (this.small_plant_active == true) {
+					this.loader.load( 'scene.gltf', ( gltf ) => {
+						this.plant = gltf.scene;
+						this.plant.position.copy(intersect.point).add(intersect.face.normal);
+						this.plant.position.divideScalar(this.gridSize).floor().multiplyScalar(this.gridSize).addScalar(this.gridSize/2);
+						this.plant.scale.set(this.gridSize/100 * 8,this.gridSize/100 * 8,this.gridSize/100 * 8);
+						this.plant.position.y = 0;
+						this.plant.name = 'plant';
+						this.plant.strain = 'purple';
+
+	        	this.scene.add( this.plant );
+						this.objects.push( this.plant );
+						this.domEvent.addEventListener(this.plant, 'click', (event)  => {
+              if (this.plant_edit == true) {
+                this.openModal();
+              }
+            }, false);
+
+	        });
+				}
+				if (this.big_plant_active == true) {
+					this.loader_big.load( 'scene.gltf', ( gltf ) => {
+						this.plant = gltf.scene;
+						this.plant.position.copy(intersect.point).add(intersect.face.normal);
+						this.plant.position.divideScalar(this.gridSize*2).floor().multiplyScalar(this.gridSize*2).addScalar(this.gridSize);
+						this.plant.scale.set(this.gridSize/100 * 7,this.gridSize/100 * 7,this.gridSize/100 * 7);
+						this.plant.position.y = 0;
+						this.plant.name = 'plant_big';
+						this.plant.strain = 'purple_big';
+
+	        	this.scene.add( this.plant );
+						this.objects.push( this.plant );
+
+						// domEvents.addEventListener(plant, 'dblclick', event => {
+						// 	window.alert(plant)
+						// });
+						// domEvents.addEventListener(plant, 'click', event => {
+						// 	let editbutton = document.getElementById('edit_plant').classList.contains('active');
+						// 	if (editbutton == true) {
+						// 		window.alert(plant)
+						// 	}
+						// })
+	        });
+				}
+
+				this.loop();
+			}
+		},
+    initLoaders: function() {
+      this.loader = new GLTFLoader().setPath('/small_plant/');
+      this.loader_big = new GLTFLoader().setPath('/big_plant/');
+    },
+    init: function() {
+      this.renderer = new THREE.WebGLRenderer( { antialias: true } );
+  		this.renderer.setPixelRatio( window.devicePixelRatio );
+  		this.renderer.setSize( window.innerWidth , window.innerHeight - 200 );
+  		document.body.appendChild( this.renderer.domElement );
+
+      this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+  		this.controls.maxDistance = this.roomX*3;
+  		this.controls.minDistance = this.gridSize;
+  		this.controls.target.set(this.roomX/2,0,this.roomY/2)
+  		this.controls.update()
+
+      // var THREEx = {}
+      // DE(THREE, THREEx)
+
+      this.domEvent	= new THREEx.DomEvents(this.camera, this.renderer.domElement);
+
+  		document.addEventListener( 'mousemove', this.onDocumentMouseMove, false );
+  		document.addEventListener( 'click', this.onDocumentMouseDown, false );
+  		document.addEventListener( 'keydown', this.onDocumentKeyDown, false );
+  		document.addEventListener( 'keyup', this.onDocumentKeyUp, false );
+
+  		window.addEventListener( 'resize', this.onWindowResize, false );
+    },
+    loop: function () {
+      requestAnimationFrame(this.loop);
+      this.controls.update();
+      this.render();
+    },
+    render: function() {
+      this.renderer.render( this.scene, this.camera );
+    }
+  },
+  mounted: function() {
+
+
+    this.initLoaders();
+
+    this.addCamera();
+    this.addScene();
+
+		// roll-over helpers
+    this.createRollOverGeo();
+
+    this.createGridHelper();
+
+
+    this.addPlane();
+    this.addText();
+
+    this.addLights();
+    this.loadPlants();
+
+
+    this.init();
+
+    this.loop();
+
+    // function onDocumentKeyDown( event ) {
+		// 	switch ( event.keyCode ) {
+		// 		case 16: isShiftDown = true; break;
+		// 	}
+		// }
+    //
+		// function onDocumentKeyUp( event ) {
+		// 	switch ( event.keyCode ) {
+		// 		case 16: isShiftDown = false; break;
+		// 	}
+		// }
+
+
+	}
+}
+
+</script>
+
+<style scoped>
+#buttons {
+	position: relative;
+	top: 80px;
+	padding: 5px;
+	font-size:13px;
+	text-align:center;
+}
+#dimensions {
+	position: absolute;
+	top: 225px;
+	right: 60px;
+	padding: 5px;
+	font-size:13px;
+  color: white;
+
+}
+</style>

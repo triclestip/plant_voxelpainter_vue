@@ -1,25 +1,20 @@
 <template>
   <div id="app">
-    <img src="./assets/logo.png">
     <div>
-      <p>
-        If Element is successfully added to this project, you'll see an
-        <code v-text="'<el-button>'"></code>
-        below
-      </p>
-      <el-button>el-button</el-button>
+    <h1>App.vue</h1>
     </div>
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
+    <VoxelPainter title="Painter"/>
   </div>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+import VoxelPainter from './components/VoxelPainter.vue'
+
 
 export default {
   name: 'app',
   components: {
-    HelloWorld
+    VoxelPainter
   }
 }
 </script>
