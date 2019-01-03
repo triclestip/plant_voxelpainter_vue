@@ -99,7 +99,7 @@ export default {
 
       objects: [],
       existingPlants: [
-        {name: 'plant', type:'small', scale: 1.6, x:50, y:0, z:50},
+        {name: 'plant', type:'big', scale: 1.6, x:50, y:0, z:50},
         {name: 'plant2', type:'small', scale: 1.6, x:10, y:0, z:10}
       ],
       loadedObjects: [],
@@ -114,6 +114,7 @@ export default {
 
       plant: 0,
       activePlant: 0,
+      editPlantName: '',
 
       topText: 0,
       bottomText: 0,
@@ -148,18 +149,73 @@ export default {
         this.plant_edit = true;
       }
     },
-    openModal: function () {
-      console.log(event)
-      console.log(this.objects)
-      this.$alert(this.activePlant.strain, this.activePlant.name, {
-        confirmButtonText: 'OK',
-        callback: action => {
+    openEditModal: function (e, selected) {
+      this.$prompt('Edit plane name', selected.name, {
+          confirmButtonText: 'OK',
+        //  cancelButtonText: 'Cancel',
+          // inputPattern: '',
+          inputErrorMessage: 'Invalid plant name'
+        }).then(({ value }) => {
+          selected.name = value;
+          this.$message({
+            type: 'success',
+            message: 'Plant name: ' + value
+          });
+        }).catch(() => {
           this.$message({
             type: 'info',
-            message: `action: ${ action }`
+            message: 'Input canceled'
           });
-        }
-      });
+        });
+    },
+    openNewModal: function () {
+      this.$prompt('Please select plant name', 'New plant', {
+          confirmButtonText: 'OK',
+          inputErrorMessage: 'Invalid plant name'
+        }).then(({ value }) => {
+
+          this.plant.name = value;
+
+          // Load Sprite as Plant Description
+          this.plantText = new TextSprite({
+          	textSize: 5,
+          	texture: {
+          		text: this.plant.name,
+          		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+          },
+          	material: {color: 0x45903c},
+          });
+          if (this.plant.type == 'small') {
+            this.plantText.position.set(this.plant.position.x , this.plant.position.y +this.plant.scale.y*20, this.plant.position.z)
+            this.scene.add(this.plantText)
+          } else {
+            this.plantText.position.set(this.plant.position.x , this.plant.position.y +this.plant.scale.y*48, this.plant.position.z)
+            this.scene.add(this.plantText)
+          }
+
+
+
+          this.scene.add( this.plant );
+          this.objects.push( this.plant );
+
+          this.domEvent.addEventListener(this.plant, 'click', (event)  => {
+            if (this.plant_edit == true) {
+              this.openEditModal(event, this.plant);
+            }
+          }, false);
+
+          this.$message({
+            type: 'success',
+            message: 'New plant: ' + value
+          });
+          this.loop();
+        }).catch(() => {
+          this.$message({
+            type: 'info',
+            message: 'Input canceled'
+          });
+        });
+        this.loop();
     },
     refreshRoom: function() {
       this.scene.remove(this.plane);
@@ -182,15 +238,20 @@ export default {
       this.controls.target.set(this.roomX/2,0,this.roomY/2);
       this.controls.update();
     },
-    addCamera: function() {
-      console.log(this.camera)
-      this.camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 10000 );
-  		this.camera.position.set( 500, 800, 2300 );
-  		console.log(this.camera);
-    },
     addScene: function() {
       this.scene = new THREE.Scene();
   		this.scene.background = new THREE.Color( 0x3e4653 );
+
+      this.camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 10000 );
+  		this.camera.position.set( 500, 800, 2300 )
+
+      // lights
+      this.ambientLight = new THREE.AmbientLight( 0x606060 );
+      this.scene.add( this.ambientLight );
+
+      this.directionalLight = new THREE.DirectionalLight( 0xffffff );
+      this.directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
+      this.scene.add( this.directionalLight );
     },
     createRollOverGeo: function() {
       this.rollOverGeo = new THREE.BoxBufferGeometry( this.gridSize, this.gridSize, this.gridSize );
@@ -212,16 +273,6 @@ export default {
         this.scene.add( this.gridHelper );
       }
 
-    },
-    addLights: function() {
-      // lights
-
-  		this.ambientLight = new THREE.AmbientLight( 0x606060 );
-  		this.scene.add( this.ambientLight );
-
-  		this.directionalLight = new THREE.DirectionalLight( 0xffffff );
-  		this.directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
-  		this.scene.add( this.directionalLight );
     },
     addPlane: function() {
       // raycaster
@@ -288,12 +339,36 @@ export default {
     },
     loadPlants: function() {
       for (var i=0; i<this.existingPlants.length; i++) {
-
         if (this.existingPlants[i].type == 'small') {
           let actual = this.existingPlants[i]
-          //console.log(actual)
           this.loader.load( 'scene.gltf', ( gltf ) => {
-            console.log(actual)
+						this.plant = gltf.scene;
+						this.plant.position.set(actual.x,actual.y, actual.z);
+						this.plant.scale.set(actual.scale, actual.scale, actual.scale);
+	        	this.scene.add( this.plant );
+						this.objects.push( this.plant );
+						this.domEvent.addEventListener(this.plant, 'click', (event)  => {
+              if (this.plant_edit == true) {
+                this.openModal();
+              }
+            }, false);
+
+            // Load Sprite as Plant Description
+            this.plantText = new TextSprite({
+            	textSize: 5,
+            	texture: {
+            		text: actual.name,
+            		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+            },
+            	material: {color: 0x45903c},
+            });
+            this.plantText.position.set(actual.x , actual.y + actual.scale*20, actual.z);
+            this.scene.add(this.plantText)
+	        });
+        }
+        if (this.existingPlants[i].type == 'big') {
+          let actual = this.existingPlants[i]
+          this.loader_big.load( 'scene.gltf', ( gltf ) => {
 						this.plant = gltf.scene;
             // this.plant.position.x = this.existingPlants[i].x
 						this.plant.position.set(actual.x,actual.y, actual.z);
@@ -305,14 +380,21 @@ export default {
                 this.openModal();
               }
             }, false);
-	        });
-        } else {
 
+            // Load Sprite as Plant Description
+            this.plantText = new TextSprite({
+            	textSize: 5,
+            	texture: {
+            		text: actual.name,
+            		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+            },
+            	material: {color: 0x45903c},
+            });
+            this.plantText.position.set(actual.x , actual.y + actual.scale*48, actual.z);
+            this.scene.add(this.plantText)
+	        });
         }
       }
-      this.existingPlants.forEach(function(existingPlant) {
-
-      })
     },
     onWindowResize: function() {
 			this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -339,7 +421,7 @@ export default {
 					this.rollOverMesh.position.divideScalar( this.gridSize ).floor().multiplyScalar( this.gridSize ).addScalar( this.gridSize / 2 );
           // console.log(this.gridSize);
 				}
-				this.loop();
+				//this.loop();
 			}
 			if ( this.big_plant_active == true) {
         this.rollOverMaterial.visible = false;
@@ -354,7 +436,7 @@ export default {
 					this.rollOverMeshBig.position.copy( intersect.point ).add( intersect.face.normal );
 					this.rollOverMeshBig.position.divideScalar( this.gridSize*2 ).floor().multiplyScalar( this.gridSize *2 ).addScalar( this.gridSize );
 				}
-				this.loop();
+				// this.loop();
 			}
 		},
     onDocumentMouseDown: function( event ) {
@@ -367,44 +449,81 @@ export default {
 			if ( intersects.length > 0 ) {
 				var intersect = intersects[ 0 ];
 				// delete cube, not working right now, as we add a scene and not a mesh to the main scene
-				if ( this.isShiftDown ) {
-					if ( intersect.object.parent !== this.scene ) {
-						this.objects.splice( this.objects.indexOf( intersect.object ), 1 );
-						intersect.object.parent.remove(intersect.object);
-					}
-					// create plant, test if small_plant button is active
-				} if (this.small_plant_active == true) {
+				// if ( this.isShiftDown ) {
+				// 	if ( intersect.object.parent !== this.scene ) {
+				// 		this.objects.splice( this.objects.indexOf( intersect.object ), 1 );
+				// 		intersect.object.parent.remove(intersect.object);
+				// 	}
+				// }
+        if (this.small_plant_active == true) {
+          this.small_plant_active = false;
+          this.rollOverMaterial.visible = false;
 					this.loader.load( 'scene.gltf', ( gltf ) => {
-						this.plant = gltf.scene;
-						this.plant.position.copy(intersect.point).add(intersect.face.normal);
-						this.plant.position.divideScalar(this.gridSize).floor().multiplyScalar(this.gridSize).addScalar(this.gridSize/2);
-						this.plant.scale.set(this.gridSize/100 * 8,this.gridSize/100 * 8,this.gridSize/100 * 8);
-						this.plant.position.y = 0;
-						this.plant.name = 'plant';
-						this.plant.strain = 'purple';
+  					this.plant = gltf.scene;
+  					this.plant.position.copy(intersect.point).add(intersect.face.normal);
+  					this.plant.position.divideScalar(this.gridSize).floor().multiplyScalar(this.gridSize).addScalar(this.gridSize/2);
+  					this.plant.scale.set(this.gridSize/100 * 8,this.gridSize/100 * 8,this.gridSize/100 * 8);
+  					this.plant.position.y = 0;
 
-	        	this.scene.add( this.plant );
-						this.objects.push( this.plant );
-						this.domEvent.addEventListener(this.plant, 'click', (event)  => {
-              if (this.plant_edit == true) {
-                this.openModal();
-              }
-            }, false);
+            this.plant.type = 'small';
 
+            this.openNewModal(event, this.plant);
+
+					// this.plant.name = 'plant_new';
+					// this.plant.strain = 'purple';
+          //
+        	// this.scene.add( this.plant );
+					// this.objects.push( this.plant );
+					// this.domEvent.addEventListener(this.plant, 'click', (event)  => {
+          //   if (this.plant_edit == true) {
+          //     this.openModal();
+          //   }
+          // }, false);
+
+          // Load Sprite as Plant Description
+          // this.plantText = new TextSprite({
+          // 	textSize: 5,
+          // 	texture: {
+          // 		text: this.plant.name,
+          // 		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+          // },
+          // 	material: {color: 0x45903c},
+          // });
+          // this.plantText.position.set(this.plant.position.x , this.plant.position.y + this.plant.scale.y*20, this.plant.position.z);
+          // this.scene.add(this.plantText)
 	        });
+
 				}
 				if (this.big_plant_active == true) {
+          this.big_plant_active = false;
+          this.rollOverMaterialBig.visible = false;
 					this.loader_big.load( 'scene.gltf', ( gltf ) => {
 						this.plant = gltf.scene;
 						this.plant.position.copy(intersect.point).add(intersect.face.normal);
 						this.plant.position.divideScalar(this.gridSize*2).floor().multiplyScalar(this.gridSize*2).addScalar(this.gridSize);
 						this.plant.scale.set(this.gridSize/100 * 7,this.gridSize/100 * 7,this.gridSize/100 * 7);
 						this.plant.position.y = 0;
-						this.plant.name = 'plant_big';
-						this.plant.strain = 'purple_big';
 
-	        	this.scene.add( this.plant );
-						this.objects.push( this.plant );
+            this.plant.type = 'big';
+
+            this.openNewModal(event, this.plant);
+						// this.plant.name = 'plant_big';
+						// this.plant.strain = 'purple_big';
+            //
+	        	// this.scene.add( this.plant );
+						// this.objects.push( this.plant );
+            //
+            // // Load Sprite as Plant Description
+            // this.plantText = new TextSprite({
+            // 	textSize: 5,
+            // 	texture: {
+            // 		text: this.plant.name,
+            // 		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+            // },
+            // 	material: {color: 0x45903c},
+            // });
+            // this.plantText.position.set(this.plant.position.x , this.plant.position.y + this.plant.scale.y*48, this.plant.position.z);
+            // this.scene.add(this.plantText)
 
 						// domEvents.addEventListener(plant, 'dblclick', event => {
 						// 	window.alert(plant)
@@ -416,9 +535,10 @@ export default {
 						// 	}
 						// })
 	        });
+
 				}
 
-				this.loop();
+			//	this.loop();
 			}
 		},
     initLoaders: function() {
@@ -459,11 +579,8 @@ export default {
     }
   },
   mounted: function() {
-
-
     this.initLoaders();
 
-    this.addCamera();
     this.addScene();
 
 		// roll-over helpers
@@ -471,13 +588,10 @@ export default {
 
     this.createGridHelper();
 
-
     this.addPlane();
     this.addText();
 
-    this.addLights();
     this.loadPlants();
-
 
     this.init();
 
@@ -494,8 +608,6 @@ export default {
 		// 		case 16: isShiftDown = false; break;
 		// 	}
 		// }
-
-
 	}
 }
 
