@@ -169,13 +169,14 @@ export default {
         });
     },
     openNewModal: function () {
+      console.log('started modal function')
       this.$prompt('Please select plant name', 'New plant', {
           confirmButtonText: 'OK',
           inputErrorMessage: 'Invalid plant name'
         }).then(({ value }) => {
-
+          console.log('got value')
           this.plant.name = value;
-
+          console.log('set name value')
           // Load Sprite as Plant Description
           this.plantText = new TextSprite({
           	textSize: 5,
@@ -185,6 +186,7 @@ export default {
           },
           	material: {color: 0x45903c},
           });
+          console.log('created textsprite')
           if (this.plant.type == 'small') {
             this.plantText.position.set(this.plant.position.x , this.plant.position.y +this.plant.scale.y*20, this.plant.position.z)
             this.scene.add(this.plantText)
@@ -192,8 +194,7 @@ export default {
             this.plantText.position.set(this.plant.position.x , this.plant.position.y +this.plant.scale.y*48, this.plant.position.z)
             this.scene.add(this.plantText)
           }
-
-
+          console.log('added text')
 
           this.scene.add( this.plant );
           this.objects.push( this.plant );
@@ -203,19 +204,20 @@ export default {
               this.openEditModal(event, this.plant);
             }
           }, false);
+          // this.loop();
 
           this.$message({
             type: 'success',
             message: 'New plant: ' + value
           });
-          this.loop();
+          // this.loop();
         }).catch(() => {
           this.$message({
             type: 'info',
             message: 'Input canceled'
           });
         });
-        this.loop();
+        // this.loop();
     },
     refreshRoom: function() {
       this.scene.remove(this.plane);
@@ -440,80 +442,47 @@ export default {
 			}
 		},
     onDocumentMouseDown: function( event ) {
-			// event.preventDefault();
-			this.mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
-			this.raycaster.setFromCamera( this.mouse, this.camera );
+      // this condition should improve speed
+      if (this.small_plant_active == true || this.big_plant_active == true) {
+        this.mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+  			this.raycaster.setFromCamera( this.mouse, this.camera );
 
-			var intersects = this.raycaster.intersectObjects( this.objects, true );
+  			var intersects = this.raycaster.intersectObjects( this.objects, true );
+        if ( intersects.length > 0 ) {
+  				var intersect = intersects[ 0 ];
+  				// delete cube, not working right now, as we add a scene and not a mesh to the main scene
+  				// if ( this.isShiftDown ) {
+  				// 	if ( intersect.object.parent !== this.scene ) {
+  				// 		this.objects.splice( this.objects.indexOf( intersect.object ), 1 );
+  				// 		intersect.object.parent.remove(intersect.object);
+  				// 	}
+  				// }
+          if (this.small_plant_active == true) {
+            this.small_plant_active = false;
+            this.rollOverMaterial.visible = false;
+  					this.loader.load( 'scene.gltf', ( gltf ) => {
+    					this.plant = gltf.scene;
+    					this.plant.position.copy(intersect.point).add(intersect.face.normal);
+    					this.plant.position.divideScalar(this.gridSize).floor().multiplyScalar(this.gridSize).addScalar(this.gridSize/2);
+    					this.plant.scale.set(this.gridSize/100 * 8,this.gridSize/100 * 8,this.gridSize/100 * 8);
+    					this.plant.position.y = 0;
 
-			if ( intersects.length > 0 ) {
-				var intersect = intersects[ 0 ];
-				// delete cube, not working right now, as we add a scene and not a mesh to the main scene
-				// if ( this.isShiftDown ) {
-				// 	if ( intersect.object.parent !== this.scene ) {
-				// 		this.objects.splice( this.objects.indexOf( intersect.object ), 1 );
-				// 		intersect.object.parent.remove(intersect.object);
-				// 	}
-				// }
-        if (this.small_plant_active == true) {
-          this.small_plant_active = false;
-          this.rollOverMaterial.visible = false;
-					this.loader.load( 'scene.gltf', ( gltf ) => {
-  					this.plant = gltf.scene;
-  					this.plant.position.copy(intersect.point).add(intersect.face.normal);
-  					this.plant.position.divideScalar(this.gridSize).floor().multiplyScalar(this.gridSize).addScalar(this.gridSize/2);
-  					this.plant.scale.set(this.gridSize/100 * 8,this.gridSize/100 * 8,this.gridSize/100 * 8);
-  					this.plant.position.y = 0;
+              this.plant.type = 'small';
 
-            this.plant.type = 'small';
+              this.openNewModal(event, this.plant);
 
-            this.openNewModal(event, this.plant);
-
-					// this.plant.name = 'plant_new';
-					// this.plant.strain = 'purple';
-          //
-        	// this.scene.add( this.plant );
-					// this.objects.push( this.plant );
-					// this.domEvent.addEventListener(this.plant, 'click', (event)  => {
-          //   if (this.plant_edit == true) {
-          //     this.openModal();
-          //   }
-          // }, false);
-
-          // Load Sprite as Plant Description
-          // this.plantText = new TextSprite({
-          // 	textSize: 5,
-          // 	texture: {
-          // 		text: this.plant.name,
-          // 		fontFamily: 'Ubuntu, Helvetica, sans-serif',
-          // },
-          // 	material: {color: 0x45903c},
-          // });
-          // this.plantText.position.set(this.plant.position.x , this.plant.position.y + this.plant.scale.y*20, this.plant.position.z);
-          // this.scene.add(this.plantText)
-	        });
-
-				}
-				if (this.big_plant_active == true) {
-          this.big_plant_active = false;
-          this.rollOverMaterialBig.visible = false;
-					this.loader_big.load( 'scene.gltf', ( gltf ) => {
-						this.plant = gltf.scene;
-						this.plant.position.copy(intersect.point).add(intersect.face.normal);
-						this.plant.position.divideScalar(this.gridSize*2).floor().multiplyScalar(this.gridSize*2).addScalar(this.gridSize);
-						this.plant.scale.set(this.gridSize/100 * 7,this.gridSize/100 * 7,this.gridSize/100 * 7);
-						this.plant.position.y = 0;
-
-            this.plant.type = 'big';
-
-            this.openNewModal(event, this.plant);
-						// this.plant.name = 'plant_big';
-						// this.plant.strain = 'purple_big';
+  					// this.plant.name = 'plant_new';
+  					// this.plant.strain = 'purple';
             //
-	        	// this.scene.add( this.plant );
-						// this.objects.push( this.plant );
-            //
-            // // Load Sprite as Plant Description
+          	// this.scene.add( this.plant );
+  					// this.objects.push( this.plant );
+  					// this.domEvent.addEventListener(this.plant, 'click', (event)  => {
+            //   if (this.plant_edit == true) {
+            //     this.openModal();
+            //   }
+            // }, false);
+
+            // Load Sprite as Plant Description
             // this.plantText = new TextSprite({
             // 	textSize: 5,
             // 	texture: {
@@ -522,30 +491,82 @@ export default {
             // },
             // 	material: {color: 0x45903c},
             // });
-            // this.plantText.position.set(this.plant.position.x , this.plant.position.y + this.plant.scale.y*48, this.plant.position.z);
+            // this.plantText.position.set(this.plant.position.x , this.plant.position.y + this.plant.scale.y*20, this.plant.position.z);
             // this.scene.add(this.plantText)
+  	        });
 
-						// domEvents.addEventListener(plant, 'dblclick', event => {
-						// 	window.alert(plant)
-						// });
-						// domEvents.addEventListener(plant, 'click', event => {
-						// 	let editbutton = document.getElementById('edit_plant').classList.contains('active');
-						// 	if (editbutton == true) {
-						// 		window.alert(plant)
-						// 	}
-						// })
-	        });
+  				}
+  				if (this.big_plant_active == true) {
+            console.log('condition type true')
+            this.big_plant_active = false;
+            this.rollOverMaterialBig.visible = false;
+            console.log('before loader')
+  					this.loader_big.load( 'scene.gltf', ( gltf ) => {
+  						this.plant = gltf.scene;
+  						this.plant.position.copy(intersect.point).add(intersect.face.normal);
+  						this.plant.position.divideScalar(this.gridSize*2).floor().multiplyScalar(this.gridSize*2).addScalar(this.gridSize);
+  						this.plant.scale.set(this.gridSize/100 * 7,this.gridSize/100 * 7,this.gridSize/100 * 7);
+  						this.plant.position.y = 0;
+              console.log('setted new position')
 
-				}
+              this.plant.type = 'big';
+              console.log('before open modal')
 
-			//	this.loop();
-			}
+  						// this.plant.name = 'plant_big';
+  						// this.plant.strain = 'purple_big';
+              //
+  	        	// this.scene.add( this.plant );
+  						// this.objects.push( this.plant );
+              //
+              // // Load Sprite as Plant Description
+              // this.plantText = new TextSprite({
+              // 	textSize: 5,
+              // 	texture: {
+              // 		text: this.plant.name,
+              // 		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+              // },
+              // 	material: {color: 0x45903c},
+              // });
+              // this.plantText.position.set(this.plant.position.x , this.plant.position.y + this.plant.scale.y*48, this.plant.position.z);
+              // this.scene.add(this.plantText)
+
+  						// domEvents.addEventListener(plant, 'dblclick', event => {
+  						// 	window.alert(plant)
+  						// });
+  						// domEvents.addEventListener(plant, 'click', event => {
+  						// 	let editbutton = document.getElementById('edit_plant').classList.contains('active');
+  						// 	if (editbutton == true) {
+  						// 		window.alert(plant)
+  						// 	}
+  						// })
+  	        });
+            this.openNewModal(event);
+            console.log('called modal')
+  				}
+
+  			//	this.loop();
+  			}
+      }
+			// event.preventDefault();
+
+
+
 		},
     initLoaders: function() {
       this.loader = new GLTFLoader().setPath('/small_plant/');
       this.loader_big = new GLTFLoader().setPath('/big_plant/');
     },
     init: function() {
+      this.initLoaders();
+      this.addScene();
+      // roll-over helpers
+      this.createRollOverGeo();
+      this.createGridHelper();
+
+      this.addPlane();
+      this.addText();
+
+      this.loadPlants();
       this.renderer = new THREE.WebGLRenderer( { antialias: true } );
   		this.renderer.setPixelRatio( window.devicePixelRatio );
   		this.renderer.setSize( window.innerWidth , window.innerHeight - 200 );
@@ -579,19 +600,7 @@ export default {
     }
   },
   mounted: function() {
-    this.initLoaders();
 
-    this.addScene();
-
-		// roll-over helpers
-    this.createRollOverGeo();
-
-    this.createGridHelper();
-
-    this.addPlane();
-    this.addText();
-
-    this.loadPlants();
 
     this.init();
 
