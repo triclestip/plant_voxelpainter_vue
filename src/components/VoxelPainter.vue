@@ -169,17 +169,34 @@ export default {
       }
     },
     openEditModal: function (e, selected) {
-      this.$prompt('Edit plane name', selected.name, {
+      this.$prompt('Insert new plant name', 'Edit plant ' + selected.name, {
           confirmButtonText: 'OK',
         //  cancelButtonText: 'Cancel',
           // inputPattern: '',
           inputErrorMessage: 'Invalid plant name'
         }).then(({ value }) => {
           selected.name = value;
+
+          selected.remove(selected.children[1])
+          console.log(selected)
+
+          this.plantText = new TextSprite({
+          	textSize: 4,
+          	texture: {
+          		text: selected.name,
+          		fontFamily: 'Ubuntu, Helvetica, sans-serif',
+          },
+          	material: {color: 0x45903c},
+          });
+
+          this.plantText.position.set(0, 0, this.gridSize)
+          this.selected.add(this.plantText)
+
           this.$message({
             type: 'success',
-            message: 'Plant name: ' + value
+            message: 'New plant name: ' + value
           });
+          console.log(this.globalPlants)
         }).catch(() => {
           this.$message({
             type: 'info',
@@ -218,7 +235,6 @@ export default {
             this.globalPlants.push(this.plant)
 
             this.scene.add( this.plant );
-            console.log(this.globalPlants)
 
           } else {
             this.plantText.position.set(0, 0, this.gridSize * 2.4)
@@ -653,7 +669,6 @@ export default {
               this.rollOverMaterial.visible = false
               this.rollOverMesh.material.color.setHex(0x454e5a);
               this.plant_delete = false
-              console.log(intersect.object)
               // this is the plant with the label
               // console.log(intersect.object.parent.parent.parent)
 
@@ -669,7 +684,9 @@ export default {
           }
           if (this.plant_edit == true) {
             if ( intersect.object.parent !== this.scene) {
-
+              this.plant_edit = false
+              this.selected = this.scene.getObjectByName(intersect.object.parent.name)
+              this.openEditModal(event, this.selected)
             }
           }
   			}
