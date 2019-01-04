@@ -5,6 +5,7 @@
       <el-button type="success" @click="togglePlant" >New small Plant</el-button>
       <el-button type="success" @click="toggleBigPlant">New Big Plant</el-button>
       <el-button type="warning" @click="toggleEdit" plain>Edit Plants</el-button>
+      <el-button type="danger" @click="toggleDelete" plain>Delete Plants</el-button>
 		</div>
     <div id="dimensions">
       <el-row :gutter="20">
@@ -44,6 +45,7 @@
         </el-col>
       </el-row>
     </div>
+    <div id="canvas"></div>
   </div>
 </template>
 
@@ -69,6 +71,7 @@ export default {
   },
   data: function() {
     return {
+      height: 600,
       roomX: 240,
       roomY: 240,
       gridSize: 20,
@@ -76,6 +79,7 @@ export default {
       small_plant_active: false,
       big_plant_active: false,
       plant_edit: false,
+      plant_delete: false,
       camera: 0,
       scene: 0,
       gridHelper: 0,
@@ -99,8 +103,8 @@ export default {
 
       objects: [],
       existingPlants: [
-        {name: 'plant', type:'big', scale: 1.6, x:50, y:0, z:50},
-        {name: 'plant2', type:'small', scale: 1.6, x:10, y:0, z:10}
+        {name: 'plant', type:'big', scale: 1.4, x:50, y:0, z:50},
+        {name: 'plant2', type:'small', scale: 1.4, x:10, y:0, z:10}
       ],
       loadedObjects: [],
 
@@ -115,6 +119,11 @@ export default {
       plant: 0,
       activePlant: 0,
       editPlantName: '',
+      selected: 0,
+
+      boundingBoxMesh: 0,
+      boundingBoxGeo: 0,
+      boundingBoxMaterial: 0,
 
       topText: 0,
       bottomText: 0,
@@ -149,6 +158,13 @@ export default {
         this.plant_edit = true;
       }
     },
+    toggleDelete: function() {
+      if (this.plant_delete == true) {
+        this.plant_delete = false;
+      } else {
+        this.plant_delete = true;
+      }
+    },
     openEditModal: function (e, selected) {
       this.$prompt('Edit plane name', selected.name, {
           confirmButtonText: 'OK',
@@ -174,43 +190,60 @@ export default {
           confirmButtonText: 'OK',
           inputErrorMessage: 'Invalid plant name'
         }).then(({ value }) => {
-          console.log('got value')
           this.plant.name = value;
-          console.log('set name value')
-          // Load Sprite as Plant Description
           this.plantText = new TextSprite({
-          	textSize: 5,
+          	textSize: 4,
           	texture: {
           		text: this.plant.name,
           		fontFamily: 'Ubuntu, Helvetica, sans-serif',
           },
           	material: {color: 0x45903c},
           });
-          console.log('created textsprite')
+
+
           if (this.plant.type == 'small') {
-            this.plantText.position.set(this.plant.position.x , this.plant.position.y +this.plant.scale.y*20, this.plant.position.z)
-            this.scene.add(this.plantText)
+            this.plantText.position.set(0, 0, this.gridSize)
+            this.plant.add(this.plantText)
+
+            this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize /1.5 , this.gridSize /1.5, this.gridSize /1.5 );
+        		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
+        		this.boundingBoxMesh = new THREE.Mesh( this.boundingBoxGeo, this.boundingBoxMaterial )
+
+            this.boundingBoxMesh.position.z = this.gridSize /4;
+
+            this.plant.add(this.boundingBoxMesh)
+
+            this.scene.add( this.plant );
           } else {
-            this.plantText.position.set(this.plant.position.x , this.plant.position.y +this.plant.scale.y*48, this.plant.position.z)
-            this.scene.add(this.plantText)
+            this.plantText.position.set(0, 0, this.gridSize * 2.4)
+            this.plant.add(this.plantText)
+
+            this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize , this.gridSize, this.gridSize *2 );
+        		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
+        		this.boundingBoxMesh = new THREE.Mesh( this.boundingBoxGeo, this.boundingBoxMaterial )
+
+            this.boundingBoxMesh.position.z = this.gridSize;
+
+            this.plant.add(this.boundingBoxMesh)
+
+            this.scene.add( this.plant );
           }
-          console.log('added text')
 
-          this.scene.add( this.plant );
+          // this.scene.add( this.plant );
           this.objects.push( this.plant );
-
-          this.domEvent.addEventListener(this.plant, 'click', (event)  => {
-            if (this.plant_edit == true) {
-              this.openEditModal(event, this.plant);
-            }
-          }, false);
-          // this.loop();
+          // let selected = this.plant
+          //
+          // this.domEvent.addEventListener(this.plant, 'click', (event, selected)  => {
+          //   console.log(selected)
+          //   if (this.plant_edit == true) {
+          //     this.openEditModal(event, this.plant);
+          //   }
+          // }, false);
 
           this.$message({
             type: 'success',
             message: 'New plant: ' + value
           });
-          // this.loop();
         }).catch(() => {
           this.$message({
             type: 'info',
@@ -244,7 +277,7 @@ export default {
       this.scene = new THREE.Scene();
   		this.scene.background = new THREE.Color( 0x3e4653 );
 
-      this.camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 10000 );
+      this.camera = new THREE.PerspectiveCamera( 45, window.innerWidth / this.height, 0.1, 10000 );
   		this.camera.position.set( 500, 800, 2300 )
 
       // lights
@@ -344,16 +377,15 @@ export default {
         if (this.existingPlants[i].type == 'small') {
           let actual = this.existingPlants[i]
           this.loader.load( 'scene.gltf', ( gltf ) => {
-						this.plant = gltf.scene;
+						this.plant = gltf.scene.children[0];
 						this.plant.position.set(actual.x,actual.y, actual.z);
 						this.plant.scale.set(actual.scale, actual.scale, actual.scale);
-	        	this.scene.add( this.plant );
-						this.objects.push( this.plant );
-						this.domEvent.addEventListener(this.plant, 'click', (event)  => {
-              if (this.plant_edit == true) {
-                this.openModal();
-              }
-            }, false);
+
+						// this.domEvent.addEventListener(this.plant, 'click', (event)  => {
+            //   if (this.plant_edit == true) {
+            //     this.openModal();
+            //   }
+            // }, false);
 
             // Load Sprite as Plant Description
             this.plantText = new TextSprite({
@@ -364,24 +396,42 @@ export default {
             },
             	material: {color: 0x45903c},
             });
-            this.plantText.position.set(actual.x , actual.y + actual.scale*20, actual.z);
-            this.scene.add(this.plantText)
+            this.plantText.position.set(0, 0, this.gridSize);
+            // this.activePlant = new THREE.Box3().setFromObject(this.plant);
+
+            // this.activePlant.add(this.plantText)
+            this.plant.add(this.plantText)
+
+            this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize / 1.5 , this.gridSize / 1.5, this.gridSize /1.5 );
+        		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
+        		this.boundingBoxMesh = new THREE.Mesh( this.boundingBoxGeo, this.boundingBoxMaterial )
+
+            //this.boundingBoxMesh.position.copy( this.plant.position );
+  					// this.boundingBoxMesh.position.divideScalar( this.gridSize ).floor().multiplyScalar( this.gridSize ).addScalar( this.gridSize / 2 );
+            this.boundingBoxMesh.position.z = this.gridSize / 4 ;
+
+            this.plant.add(this.boundingBoxMesh)
+            // this.plant.add(this.activePlant)
+
+            this.scene.add( this.plant );
+
+						// this.objects.push( this.plant );
+            this.objects.push(this.boundingBoxMesh)
 	        });
         }
         if (this.existingPlants[i].type == 'big') {
           let actual = this.existingPlants[i]
           this.loader_big.load( 'scene.gltf', ( gltf ) => {
-						this.plant = gltf.scene;
+						this.plant = gltf.scene.children[0];
             // this.plant.position.x = this.existingPlants[i].x
 						this.plant.position.set(actual.x,actual.y, actual.z);
 						this.plant.scale.set(actual.scale, actual.scale, actual.scale);
-	        	this.scene.add( this.plant );
-						this.objects.push( this.plant );
-						this.domEvent.addEventListener(this.plant, 'click', (event)  => {
-              if (this.plant_edit == true) {
-                this.openModal();
-              }
-            }, false);
+
+						// this.domEvent.addEventListener(this.plant, 'click', (event)  => {
+            //   if (this.plant_edit == true) {
+            //     this.openModal();
+            //   }
+            // }, false);
 
             // Load Sprite as Plant Description
             this.plantText = new TextSprite({
@@ -392,8 +442,20 @@ export default {
             },
             	material: {color: 0x45903c},
             });
-            this.plantText.position.set(actual.x , actual.y + actual.scale*48, actual.z);
-            this.scene.add(this.plantText)
+            this.plantText.position.set(0, 0, this.gridSize * 2.4);
+            this.plant.add(this.plantText)
+
+            this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize , this.gridSize, this.gridSize *2 );
+        		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
+        		this.boundingBoxMesh = new THREE.Mesh( this.boundingBoxGeo, this.boundingBoxMaterial )
+
+            this.boundingBoxMesh.position.z = this.gridSize  ;
+
+            this.plant.add(this.boundingBoxMesh)
+
+            this.scene.add( this.plant );
+						// this.objects.push( this.plant );
+            this.objects.push(this.boundingBoxMesh)
 	        });
         }
       }
@@ -443,13 +505,20 @@ export default {
 		},
     onDocumentMouseDown: function( event ) {
       // this condition should improve speed
-      if (this.small_plant_active == true || this.big_plant_active == true) {
+      if (this.small_plant_active == true || this.big_plant_active == true || this.plant_edit == true || this.plant_delete) {
         this.mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+        // this.mouse.set(event.clientX, event.clientY)
   			this.raycaster.setFromCamera( this.mouse, this.camera );
+
+        // for (let i=0; i<=this.objects.length; i++) {
+        //   let bbox = new THREE.Box3.setFromObject(this.objects.length[i])
+        //   this.boundingBoxes.push(bbox)
+        // }
 
   			var intersects = this.raycaster.intersectObjects( this.objects, true );
         if ( intersects.length > 0 ) {
   				var intersect = intersects[ 0 ];
+          console.log(intersects)
   				// delete cube, not working right now, as we add a scene and not a mesh to the main scene
   				// if ( this.isShiftDown ) {
   				// 	if ( intersect.object.parent !== this.scene ) {
@@ -461,15 +530,16 @@ export default {
             this.small_plant_active = false;
             this.rollOverMaterial.visible = false;
   					this.loader.load( 'scene.gltf', ( gltf ) => {
-    					this.plant = gltf.scene;
+    					this.plant = gltf.scene.children[0];
+
     					this.plant.position.copy(intersect.point).add(intersect.face.normal);
     					this.plant.position.divideScalar(this.gridSize).floor().multiplyScalar(this.gridSize).addScalar(this.gridSize/2);
-    					this.plant.scale.set(this.gridSize/100 * 8,this.gridSize/100 * 8,this.gridSize/100 * 8);
+    					this.plant.scale.set(this.gridSize/100 * 7,this.gridSize/100 * 7,this.gridSize/100 * 7);
     					this.plant.position.y = 0;
 
               this.plant.type = 'small';
 
-              this.openNewModal(event, this.plant);
+
 
   					// this.plant.name = 'plant_new';
   					// this.plant.strain = 'purple';
@@ -494,23 +564,21 @@ export default {
             // this.plantText.position.set(this.plant.position.x , this.plant.position.y + this.plant.scale.y*20, this.plant.position.z);
             // this.scene.add(this.plantText)
   	        });
-
+            this.openNewModal(event);
   				}
   				if (this.big_plant_active == true) {
-            console.log('condition type true')
+
             this.big_plant_active = false;
             this.rollOverMaterialBig.visible = false;
-            console.log('before loader')
+
   					this.loader_big.load( 'scene.gltf', ( gltf ) => {
-  						this.plant = gltf.scene;
+  						this.plant = gltf.scene.children[0];
   						this.plant.position.copy(intersect.point).add(intersect.face.normal);
   						this.plant.position.divideScalar(this.gridSize*2).floor().multiplyScalar(this.gridSize*2).addScalar(this.gridSize);
   						this.plant.scale.set(this.gridSize/100 * 7,this.gridSize/100 * 7,this.gridSize/100 * 7);
   						this.plant.position.y = 0;
-              console.log('setted new position')
 
               this.plant.type = 'big';
-              console.log('before open modal')
 
   						// this.plant.name = 'plant_big';
   						// this.plant.strain = 'purple_big';
@@ -541,10 +609,26 @@ export default {
   						// })
   	        });
             this.openNewModal(event);
-            console.log('called modal')
   				}
+          // console.log(intersect.object)
+          if (this.plant_delete == true) {
 
-  			//	this.loop();
+
+            if ( intersect.object.parent !== this.scene ) {
+              this.plant_delete = false
+              console.log(intersect.object)
+              // this is the plant with the label
+              // console.log(intersect.object.parent.parent.parent)
+
+              this.objects.splice( this.objects.indexOf( intersect.object ), 1 );
+              // intersect.object.parent.parent.parent.parent.remove(intersect.object.parent.parent.parent)
+              // this is the whole object
+              // console.log(intersect.object.parent)
+              // intersect.object.parent.remove(intersect.object.children)
+              intersect.object.parent.parent.remove(intersect.object.parent)
+              // this.scene.remove(intersect.object.parent)
+  					}
+          }
   			}
       }
 			// event.preventDefault();
@@ -568,9 +652,11 @@ export default {
 
       this.loadPlants();
       this.renderer = new THREE.WebGLRenderer( { antialias: true } );
-  		this.renderer.setPixelRatio( window.devicePixelRatio );
-  		this.renderer.setSize( window.innerWidth , window.innerHeight - 200 );
-  		document.body.appendChild( this.renderer.domElement );
+  		this.renderer.setPixelRatio( window.innerWidth / this.height );
+  		this.renderer.setSize( window.innerWidth , this.height  );
+
+      let canvas = document.getElementById('canvas')
+  		canvas.appendChild( this.renderer.domElement );
 
       this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
   		this.controls.maxDistance = this.roomX*3;
@@ -638,5 +724,9 @@ export default {
 	font-size:13px;
   color: white;
 
+}
+#canvas {
+  width: 100%;
+  height: 600px;
 }
 </style>
