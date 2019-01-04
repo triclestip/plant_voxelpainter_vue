@@ -59,11 +59,6 @@ import TextSprite from 'three.textsprite'
 
 import THREEx from '../assets/threex.domevents.js'
 
-// var THREE = require('three')
-// var initializeDomEvents = require('threex.domevents')
-// var THREEx = {}
-// initializeDomEvents(THREE, THREEx);
-
 export default {
   name: 'VoxelPainter',
   props: {
@@ -182,7 +177,7 @@ export default {
           selected.name = value;
 
           selected.remove(selected.children[2])
-          console.log(selected)
+          console.log(this.scene)
 
           this.plantText = new TextSprite({
           	textSize: 4,
@@ -193,8 +188,14 @@ export default {
           	material: {color: 0x45903c},
           });
 
-          this.plantText.position.set(0, 0, this.gridSize)
-          this.selected.add(this.plantText)
+          if (selected.type == 'big') {
+            this.plantText.position.set(0, 0, this.gridSize * 2.4)
+            this.selected.add(this.plantText)
+            // this.scene.add(this.selected)
+          } else {
+            this.plantText.position.set(0, 0, this.gridSize)
+            this.selected.add(this.plantText)
+          }
 
           this.$message({
             type: 'success',
@@ -226,7 +227,6 @@ export default {
 
 
           if (this.plant.type == 'small') {
-
 
             this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize /1.5 , this.gridSize /1.5, this.gridSize /1.5 );
         		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
@@ -414,6 +414,7 @@ export default {
 						this.plant.scale.set(actual.scale, actual.scale, actual.scale);
 
             this.plant.name = actual.name
+            this.plant.type = actual.type
 
             this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize / 1.5 , this.gridSize / 1.5, this.gridSize /1.5 );
         		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
@@ -449,7 +450,7 @@ export default {
 
             this.scene.add( this.plant );
 
-						// this.objects.push( this.plant );
+						this.objects.push( this.plant );
             this.objects.push(this.boundingBoxMesh)
 
 	        });
@@ -463,6 +464,7 @@ export default {
 						this.plant.scale.set(actual.scale, actual.scale, actual.scale);
 
             this.plant.name = actual.name
+            this.plant.type = actual.type
 
 						// this.domEvent.addEventListener(this.plant, 'click', (event)  => {
             //   if (this.plant_edit == true) {
@@ -479,8 +481,7 @@ export default {
             },
             	material: {color: 0x45903c},
             });
-            this.plantText.position.set(0, 0, this.gridSize * 2.4);
-            this.plant.add(this.plantText)
+
 
             this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize , this.gridSize, this.gridSize *2 );
         		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
@@ -489,10 +490,14 @@ export default {
             this.boundingBoxMesh.position.z = this.gridSize  ;
 
             this.plant.add(this.boundingBoxMesh)
+
+            this.plantText.position.set(0, 0, this.gridSize * 2.4);
+            this.plant.add(this.plantText)
+
             this.globalPlants.push(this.plant)
 
             this.scene.add( this.plant );
-						// this.objects.push( this.plant );
+						this.objects.push( this.plant );
             this.objects.push(this.boundingBoxMesh)
 
 	        });
@@ -583,11 +588,6 @@ export default {
         this.mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
         // this.mouse.set(event.clientX, event.clientY)
   			this.raycaster.setFromCamera( this.mouse, this.camera );
-
-        // for (let i=0; i<=this.objects.length; i++) {
-        //   let bbox = new THREE.Box3.setFromObject(this.objects.length[i])
-        //   this.boundingBoxes.push(bbox)
-        // }
 
   			var intersects = this.raycaster.intersectObjects( this.objects, true );
         if ( intersects.length > 0 ) {
