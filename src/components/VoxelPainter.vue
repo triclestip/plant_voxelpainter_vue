@@ -181,7 +181,7 @@ export default {
         }).then(({ value }) => {
           selected.name = value;
 
-          selected.remove(selected.children[1])
+          selected.remove(selected.children[2])
           console.log(selected)
 
           this.plantText = new TextSprite({
@@ -226,31 +226,33 @@ export default {
 
 
           if (this.plant.type == 'small') {
-            this.plantText.position.set(0, 0, this.gridSize)
-            this.plant.add(this.plantText)
+
 
             this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize /1.5 , this.gridSize /1.5, this.gridSize /1.5 );
         		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
         		this.boundingBoxMesh = new THREE.Mesh( this.boundingBoxGeo, this.boundingBoxMaterial )
-
             this.boundingBoxMesh.position.z = this.gridSize /4;
 
             this.plant.add(this.boundingBoxMesh)
+
+            this.plantText.position.set(0, 0, this.gridSize)
+            this.plant.add(this.plantText)
             this.globalPlants.push(this.plant)
 
             this.scene.add( this.plant );
 
           } else {
-            this.plantText.position.set(0, 0, this.gridSize * 2.4)
-            this.plant.add(this.plantText)
 
             this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize , this.gridSize, this.gridSize *2 );
         		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
         		this.boundingBoxMesh = new THREE.Mesh( this.boundingBoxGeo, this.boundingBoxMaterial )
-
             this.boundingBoxMesh.position.z = this.gridSize;
 
             this.plant.add(this.boundingBoxMesh)
+
+            this.plantText.position.set(0, 0, this.gridSize * 2.4)
+            this.plant.add(this.plantText)
+
             this.globalPlants.push(this.plant)
 
             this.scene.add( this.plant );
@@ -413,6 +415,13 @@ export default {
 
             this.plant.name = actual.name
 
+            this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize / 1.5 , this.gridSize / 1.5, this.gridSize /1.5 );
+        		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
+        		this.boundingBoxMesh = new THREE.Mesh( this.boundingBoxGeo, this.boundingBoxMaterial )
+            this.boundingBoxMesh.position.z = this.gridSize / 4 ;
+
+            this.plant.add(this.boundingBoxMesh)
+
 						// this.domEvent.addEventListener(this.plant, 'click', (event)  => {
             //   if (this.plant_edit == true) {
             //     this.openModal();
@@ -434,15 +443,7 @@ export default {
             // this.activePlant.add(this.plantText)
             this.plant.add(this.plantText)
 
-            this.boundingBoxGeo = new THREE.BoxGeometry(this.gridSize / 1.5 , this.gridSize / 1.5, this.gridSize /1.5 );
-        		this.boundingBoxMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
-        		this.boundingBoxMesh = new THREE.Mesh( this.boundingBoxGeo, this.boundingBoxMaterial )
 
-            //this.boundingBoxMesh.position.copy( this.plant.position );
-  					// this.boundingBoxMesh.position.divideScalar( this.gridSize ).floor().multiplyScalar( this.gridSize ).addScalar( this.gridSize / 2 );
-            this.boundingBoxMesh.position.z = this.gridSize / 4 ;
-
-            this.plant.add(this.boundingBoxMesh)
             // this.plant.add(this.activePlant)
             this.globalPlants.push(this.plant)
 
