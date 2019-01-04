@@ -121,6 +121,9 @@ export default {
       editPlantName: '',
       selected: 0,
 
+      // buffer for all plants (whole object)
+      globalPlants: [],
+
       boundingBoxMesh: 0,
       boundingBoxGeo: 0,
       boundingBoxMaterial: 0,
@@ -185,12 +188,12 @@ export default {
         });
     },
     openNewModal: function () {
-      console.log('started modal function')
       this.$prompt('Please select plant name', 'New plant', {
           confirmButtonText: 'OK',
           inputErrorMessage: 'Invalid plant name'
         }).then(({ value }) => {
           this.plant.name = value;
+          console.log(this.plant)
           this.plantText = new TextSprite({
           	textSize: 4,
           	texture: {
@@ -212,8 +215,11 @@ export default {
             this.boundingBoxMesh.position.z = this.gridSize /4;
 
             this.plant.add(this.boundingBoxMesh)
+            this.globalPlants.push(this.plant)
 
             this.scene.add( this.plant );
+            console.log(this.globalPlants)
+
           } else {
             this.plantText.position.set(0, 0, this.gridSize * 2.4)
             this.plant.add(this.plantText)
@@ -225,8 +231,11 @@ export default {
             this.boundingBoxMesh.position.z = this.gridSize;
 
             this.plant.add(this.boundingBoxMesh)
+            this.globalPlants.push(this.plant)
 
             this.scene.add( this.plant );
+
+
           }
 
           // this.scene.add( this.plant );
@@ -291,6 +300,7 @@ export default {
     createRollOverGeo: function() {
       this.rollOverGeo = new THREE.BoxBufferGeometry( this.gridSize, this.gridSize, this.gridSize );
   		this.rollOverMaterial = new THREE.MeshBasicMaterial( { visible: false, color: 0x454e5a, opacity: 0.5, transparent: true } );
+      // this.rollOverMaterialRed = new THREE.MeshBasicMaterial( { visible: false, color: 0xf56c6c, opacity: 0.5, transparent: true } );
   		this.rollOverMesh = new THREE.Mesh( this.rollOverGeo, this.rollOverMaterial )
   		this.scene.add(this.rollOverMesh)
 
@@ -381,6 +391,8 @@ export default {
 						this.plant.position.set(actual.x,actual.y, actual.z);
 						this.plant.scale.set(actual.scale, actual.scale, actual.scale);
 
+            this.plant.name = actual.name
+
 						// this.domEvent.addEventListener(this.plant, 'click', (event)  => {
             //   if (this.plant_edit == true) {
             //     this.openModal();
@@ -412,11 +424,13 @@ export default {
 
             this.plant.add(this.boundingBoxMesh)
             // this.plant.add(this.activePlant)
+            this.globalPlants.push(this.plant)
 
             this.scene.add( this.plant );
 
 						// this.objects.push( this.plant );
             this.objects.push(this.boundingBoxMesh)
+
 	        });
         }
         if (this.existingPlants[i].type == 'big') {
@@ -426,6 +440,8 @@ export default {
             // this.plant.position.x = this.existingPlants[i].x
 						this.plant.position.set(actual.x,actual.y, actual.z);
 						this.plant.scale.set(actual.scale, actual.scale, actual.scale);
+
+            this.plant.name = actual.name
 
 						// this.domEvent.addEventListener(this.plant, 'click', (event)  => {
             //   if (this.plant_edit == true) {
@@ -452,10 +468,12 @@ export default {
             this.boundingBoxMesh.position.z = this.gridSize  ;
 
             this.plant.add(this.boundingBoxMesh)
+            this.globalPlants.push(this.plant)
 
             this.scene.add( this.plant );
 						// this.objects.push( this.plant );
             this.objects.push(this.boundingBoxMesh)
+
 	        });
         }
       }
@@ -467,6 +485,7 @@ export default {
 			this.renderer.setSize( window.innerWidth, window.innerHeight );
 		},
     onDocumentMouseMove: function( event ) {
+
 			// event.preventDefault();
 			// let sp = document.getElementById('small_plant').classList.contains('active')
 			// let bp = document.getElementById('big_plant').classList.contains('active')
@@ -488,7 +507,7 @@ export default {
 				//this.loop();
 			}
 			if ( this.big_plant_active == true) {
-        this.rollOverMaterial.visible = false;
+
 				this.mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
 
 				this.raycaster.setFromCamera( this.mouse, this.camera );
@@ -502,6 +521,23 @@ export default {
 				}
 				// this.loop();
 			}
+      if ( this.plant_delete == true) {
+        this.mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+
+				this.raycaster.setFromCamera( this.mouse, this.camera );
+				var intersects = this.raycaster.intersectObjects( this.objects );
+
+				if ( intersects.length > 0 ) {
+					var intersect = intersects[ 0 ];
+					this.rollOverMaterial.visible = true;
+          this.rollOverMesh.material.color.setHex(0xf56c6c);
+          // this.rollOverMaterial.color = '0xf56c6c';
+
+					this.rollOverMesh.position.copy( intersect.point ).add( intersect.face.normal );
+					this.rollOverMesh.position.divideScalar( this.gridSize ).floor().multiplyScalar( this.gridSize ).addScalar( this.gridSize / 2 );
+          // console.log(this.gridSize);
+				}
+      }
 		},
     onDocumentMouseDown: function( event ) {
       // this condition should improve speed
@@ -518,7 +554,7 @@ export default {
   			var intersects = this.raycaster.intersectObjects( this.objects, true );
         if ( intersects.length > 0 ) {
   				var intersect = intersects[ 0 ];
-          console.log(intersects)
+
   				// delete cube, not working right now, as we add a scene and not a mesh to the main scene
   				// if ( this.isShiftDown ) {
   				// 	if ( intersect.object.parent !== this.scene ) {
@@ -613,14 +649,16 @@ export default {
           // console.log(intersect.object)
           if (this.plant_delete == true) {
 
-
             if ( intersect.object.parent !== this.scene ) {
+              this.rollOverMaterial.visible = false
+              this.rollOverMesh.material.color.setHex(0x454e5a);
               this.plant_delete = false
               console.log(intersect.object)
               // this is the plant with the label
               // console.log(intersect.object.parent.parent.parent)
 
               this.objects.splice( this.objects.indexOf( intersect.object ), 1 );
+              this.globalPlants.splice( this.globalPlants.indexOf(intersect.object.parent), 1)
               // intersect.object.parent.parent.parent.parent.remove(intersect.object.parent.parent.parent)
               // this is the whole object
               // console.log(intersect.object.parent)
@@ -628,6 +666,11 @@ export default {
               intersect.object.parent.parent.remove(intersect.object.parent)
               // this.scene.remove(intersect.object.parent)
   					}
+          }
+          if (this.plant_edit == true) {
+            if ( intersect.object.parent !== this.scene) {
+
+            }
           }
   			}
       }
