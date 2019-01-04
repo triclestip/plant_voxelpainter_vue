@@ -157,6 +157,8 @@ export default {
     toggleEdit: function() {
       if (this.plant_edit == true) {
         this.plant_edit = false;
+        this.rollOverMaterial.visible = false
+        this.rollOverMesh.material.color.setHex(0x454e5a);
       } else {
         this.plant_edit = true;
       }
@@ -164,6 +166,8 @@ export default {
     toggleDelete: function() {
       if (this.plant_delete == true) {
         this.plant_delete = false;
+        this.rollOverMaterial.visible = false
+        this.rollOverMesh.material.color.setHex(0x454e5a);
       } else {
         this.plant_delete = true;
       }
@@ -546,7 +550,24 @@ export default {
 				if ( intersects.length > 0 ) {
 					var intersect = intersects[ 0 ];
 					this.rollOverMaterial.visible = true;
-          this.rollOverMesh.material.color.setHex(0xf56c6c);
+          this.rollOverMesh.material.color.setHex(0xf76300);
+          // this.rollOverMaterial.color = '0xf56c6c';
+
+					this.rollOverMesh.position.copy( intersect.point ).add( intersect.face.normal );
+					this.rollOverMesh.position.divideScalar( this.gridSize ).floor().multiplyScalar( this.gridSize ).addScalar( this.gridSize / 2 );
+          // console.log(this.gridSize);
+				}
+      }
+      if ( this.plant_edit == true) {
+        this.mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+
+				this.raycaster.setFromCamera( this.mouse, this.camera );
+				var intersects = this.raycaster.intersectObjects( this.objects );
+
+				if ( intersects.length > 0 ) {
+					var intersect = intersects[ 0 ];
+					this.rollOverMaterial.visible = true;
+          this.rollOverMesh.material.color.setHex(0xe8a849);
           // this.rollOverMaterial.color = '0xf56c6c';
 
 					this.rollOverMesh.position.copy( intersect.point ).add( intersect.face.normal );
@@ -684,6 +705,8 @@ export default {
           }
           if (this.plant_edit == true) {
             if ( intersect.object.parent !== this.scene) {
+              this.rollOverMaterial.visible = false
+              this.rollOverMesh.material.color.setHex(0x454e5a);
               this.plant_edit = false
               this.selected = this.scene.getObjectByName(intersect.object.parent.name)
               this.openEditModal(event, this.selected)
