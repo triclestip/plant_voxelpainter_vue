@@ -92,9 +92,12 @@ export default {
       domEvent: 0,
       ambientLight: 0,
       directionalLight: 0,
+      directionalLight2: 0,
+      directionalLight3: 0,
 
       loader: 0,
       loader_big: 0,
+      loader_world: 0,
 
       objects: [],
       existingPlants: [
@@ -127,6 +130,10 @@ export default {
       bottomText: 0,
       leftText: 0,
       rightText: 0,
+
+      worldGeo: 0,
+      worldMaterial: 0,
+      worldMesh: 0,
     }
 
   },
@@ -177,7 +184,6 @@ export default {
           selected.name = value;
 
           selected.remove(selected.children[2])
-          console.log(this.scene)
 
           this.plantText = new TextSprite({
           	textSize: 4,
@@ -201,7 +207,6 @@ export default {
             type: 'success',
             message: 'New plant name: ' + value
           });
-          console.log(this.globalPlants)
         }).catch(() => {
           this.$message({
             type: 'info',
@@ -215,7 +220,6 @@ export default {
           inputErrorMessage: 'Invalid plant name'
         }).then(({ value }) => {
           this.plant.name = value;
-          console.log(this.plant)
           this.plantText = new TextSprite({
           	textSize: 4,
           	texture: {
@@ -238,6 +242,7 @@ export default {
             this.plantText.position.set(0, 0, this.gridSize)
             this.plant.add(this.plantText)
             this.globalPlants.push(this.plant)
+            this.objects.push( this.boundingBoxMesh );
 
             this.scene.add( this.plant );
 
@@ -254,6 +259,7 @@ export default {
             this.plant.add(this.plantText)
 
             this.globalPlants.push(this.plant)
+            this.objects.push( this.boundingBoxMesh );
 
             this.scene.add( this.plant );
 
@@ -261,7 +267,7 @@ export default {
           }
 
           // this.scene.add( this.plant );
-          this.objects.push( this.plant );
+
           // let selected = this.plant
           //
           // this.domEvent.addEventListener(this.plant, 'click', (event, selected)  => {
@@ -315,9 +321,13 @@ export default {
       this.ambientLight = new THREE.AmbientLight( 0x606060 );
       this.scene.add( this.ambientLight );
 
-      this.directionalLight = new THREE.DirectionalLight( 0xffffff );
-      this.directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
+      this.directionalLight = new THREE.DirectionalLight( 0xfeb74c );
+      this.directionalLight.position.set( this.roomX, this.roomX , this.roomY  );
       this.scene.add( this.directionalLight );
+
+      this.directionalLight2 = new THREE.DirectionalLight ( 0xfeb74c )
+      this.directionalLight2.position.set( - this.roomX, this.roomY, - this.roomY)
+      this.scene.add( this.directionalLight2 )
     },
     createRollOverGeo: function() {
       this.rollOverGeo = new THREE.BoxBufferGeometry( this.gridSize, this.gridSize, this.gridSize );
@@ -450,7 +460,7 @@ export default {
 
             this.scene.add( this.plant );
 
-						this.objects.push( this.plant );
+						// this.objects.push( this.plant );
             this.objects.push(this.boundingBoxMesh)
 
 	        });
@@ -503,6 +513,15 @@ export default {
 	        });
         }
       }
+    },
+    loadWorld: function() {
+
+      // this.loader_world.load('world.gltf', ( gltf ) => {
+      //   let world = gltf.scene.children[2]
+      //   console.log(world)
+      //   this.scene.add(world)
+      //   console.log(this.scene)
+      // });
     },
     onWindowResize: function() {
 			this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -723,6 +742,7 @@ export default {
     initLoaders: function() {
       this.loader = new GLTFLoader().setPath('/small_plant/');
       this.loader_big = new GLTFLoader().setPath('/big_plant/');
+      this.loader_world = new GLTFLoader().setPath('/voxelworld/');
     },
     init: function() {
       this.initLoaders();
@@ -733,6 +753,8 @@ export default {
 
       this.addPlane();
       this.addText();
+
+      this.loadWorld();
 
       this.loadPlants();
       this.renderer = new THREE.WebGLRenderer( { antialias: true } );
